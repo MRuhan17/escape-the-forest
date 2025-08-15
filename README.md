@@ -22,3 +22,13 @@ Every decision affects your **score, health, and ending**.
 ```bash
 git clone https://github.com/<your-username>/escape-the-forest.git
 cd escape-the-forest
+
+---
+
+Example Gameplay:
+
+You wake to the hush of a dark forest.
+There's a faint path leading north and a river to the east.
+Where do you want to go? (north/east): north
+
+You follow the path and find a small hut...
