@@ -211,3 +211,16 @@ def ending(p: Player, title: str) -> None:
     else:
         slow_print("Thanks for playing! 🌲")
         sys.exit(0)
+
+# ---------- Entry Point ----------
+
+def game() -> None:
+    random.seed()  # fresh randomness each run
+    player = Player()
+    intro(player)
+
+if __name__ == "__main__":
+    try:
+        game()
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
