@@ -30,7 +30,7 @@ You follow the path and find a small hut...
 
 **1. Clone this repository**
 ```bash
-git clone https://github.com/<your-username>/escape-the-forest.git
+git clone https://github.com/MRuhan17/escape-the-forest.git
 cd escape-the-forest
 
 
