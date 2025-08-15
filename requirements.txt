@@ -1,1 +1,2 @@
-
+# No external dependencies
+# Requires Python 3.7 or higher
