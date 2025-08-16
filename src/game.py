@@ -47,7 +47,7 @@ class Player:
     def heal(self, amount: int = 1, pts: int = 2) -> None:
         self.health += amount
         self.score += pts
-        slow_print(f"[+] You feel better (+{amount} health, +{pts} pts). Health: {self.health}"
+        slow_print(f"[+] You feel better (+{amount} health, +{pts} pts). Health: {self.health}")
 
 # ---------- Scenes ----------
 
