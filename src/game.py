@@ -84,7 +84,7 @@ def fight(p, name="Rival", hp=4):
 # ---------- Puzzle ----------
 
 def puzzle_echo(p):
-    slow("\n‘I speak without a mouth… what am I?’")
+    slow("\n'I speak without a mouth and hear without ears. What am I?'")
     ans = input("Answer: ").lower()
     if "echo" in ans:
         p.add("whistle", 10)
