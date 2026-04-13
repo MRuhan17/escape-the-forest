@@ -2,225 +2,286 @@ import sys
 import time
 import random
 from dataclasses import dataclass, field
-from typing import List
 
-# ---------- Utilities ----------
+# ---------- Utils ----------
 
-def slow_print(text: str, delay: float = 0.02) -> None:
-    """Print text with a gentle typewriter effect."""
-    for ch in text:
-        sys.stdout.write(ch)
+def slow(text, delay=0.015):
+    for c in text:
+        sys.stdout.write(c)
         sys.stdout.flush()
         time.sleep(delay)
     print()
 
-def ask(prompt: str, options: List[str]) -> str:
-    """Ask the user until they give one of the allowed responses."""
-    opts = "/".join(options)
+def ask(q, opts):
     while True:
-        resp = input(f"{prompt} ({opts}): ").strip().lower()
-        if resp in options:
-            return resp
-        print(f"Please type one of: {', '.join(options)}")
+        ans = input(f"{q} ({'/'.join(opts)}): ").lower()
+        if ans in opts:
+            return ans
 
-# ---------- Game State ----------
+# ---------- Player ----------
 
 @dataclass
 class Player:
-    health: int = 3
+    hp: int = 5
     score: int = 0
-    inventory: List[str] = field(default_factory=list)
+    inv: list = field(default_factory=list)
 
-    def has(self, item: str) -> bool:
-        return item in self.inventory
-
-    def add(self, item: str, pts: int = 5) -> None:
-        if item not in self.inventory:
-            self.inventory.append(item)
+    def add(self, item, pts=5):
+        if item not in self.inv:
+            self.inv.append(item)
             self.score += pts
-            slow_print(f"[+] You obtained **{item}** (+{pts} pts)")
+            slow(f"[+] Got {item}")
 
-    def damage(self, amount: int = 1) -> None:
-        self.health -= amount
-        slow_print(f"[!] You took {amount} damage. Health: {self.health}")
+    def dmg(self, n=1):
+        self.hp -= n
+        slow(f"[!] Took {n} damage | HP: {self.hp}")
 
-    def heal(self, amount: int = 1, pts: int = 2) -> None:
-        self.health += amount
-        self.score += pts
-        slow_print(f"[+] You feel better (+{amount} health, +{pts} pts). Health: {self.health}")
+    def heal(self, n=1):
+        self.hp += n
+        slow(f"[+] Healed {n} | HP: {self.hp}")
+
+# ---------- Combat ----------
+
+def fight(p, name="Rival", hp=4):
+    slow(f"\n⚔️ {name} appears!")
+
+    while hp > 0 and p.hp > 0:
+        slow(f"Your HP: {p.hp} | {name} HP: {hp}")
+        move = ask("Choose", ["attack", "defend", "item"])
+
+        enemy = random.choice(["attack", "attack", "defend"])
+
+        if move == "attack":
+            if enemy == "defend":
+                slow(f"{name} blocked it.")
+            else:
+                dmg = random.randint(1,2)
+                hp -= dmg
+                slow(f"You deal {dmg}")
+
+        elif move == "defend":
+            slow("You brace.")
+
+        elif move == "item":
+            if "rations" in p.inv:
+                p.heal(2)
+                p.inv.remove("rations")
+            else:
+                slow("No usable item.")
+
+        if hp > 0 and enemy == "attack":
+            if move != "defend":
+                p.dmg(1)
+            else:
+                slow("You blocked.")
+
+    if p.hp <= 0:
+        ending(p, "You were defeated")
+    else:
+        slow(f"{name} defeated.")
+        p.score += 20
+
+# ---------- Puzzle ----------
+
+def puzzle_echo(p):
+    slow("\n‘I speak without a mouth… what am I?’")
+    ans = input("Answer: ").lower()
+    if "echo" in ans:
+        p.add("whistle", 10)
+    else:
+        p.dmg(1)
+
+def puzzle_math(p):
+    slow("\nSequence: 2, 4, 8, 16, ?")
+    ans = input("Answer: ")
+    if ans == "32":
+        p.add("core", 20)
+    else:
+        p.dmg(1)
 
 # ---------- Scenes ----------
 
-def intro(p: Player) -> None:
-    slow_print("You wake to the hush of a **dark forest**.")
-    slow_print("A narrow **path** leads north, and a silver **river** whispers to the east.")
-    choice = ask("Where do you go", ["north", "east"])
-    if choice == "north":
+def intro(p):
+    slow("\nYou wake in a dark forest.")
+    c = ask("Go", ["north", "east"])
+
+    if c == "north":
         hut(p)
     else:
         river(p)
 
-def hut(p: Player) -> None:
-    slow_print("You follow the path and reach a mossy **hut** with a wooden door.")
-    if not p.has("rusty key"):
-        slow_print("A wind chime glints… something is lodged beneath the mat.")
-        if ask("Check under the mat", ["yes", "no"]) == "yes":
-            p.add("rusty key", 8)
-    enter = ask("Do you enter the hut", ["yes", "no"])
-    if enter == "no":
-        slow_print("You circle the hut and spot a faint **trail** west.")
-        return clearing(p)
+# ---------- Hut ----------
 
-    slow_print("Inside: dust, a table, and a locked **chest**.")
-    if p.has("rusty key") and ask("Use the rusty key on the chest", ["yes", "no"]) == "yes":
-        slow_print("The lock clicks open.")
-        p.add("forest map", 10)
-        p.add("dried rations", 5)
-        if ask("Eat some rations", ["yes", "no"]) == "yes":
-            p.heal(1, 2)
-    else:
-        slow_print("The chest won’t budge. Maybe there’s a key somewhere…")
+def hut(p):
+    slow("\nYou find a hut.")
 
-    if ask("Leave the hut and head back outside", ["yes", "no"]) == "yes":
-        clearing(p)
-    else:
-        slow_print("You nap on the dusty floor and wake sneezing. Time to go.")
-        clearing(p)
+    if ask("Search outside", ["yes","no"]) == "yes":
+        p.add("key", 8)
 
-def river(p: Player) -> None:
-    slow_print("You reach the **river**. The current looks strong.")
-    if not p.has("branch pole"):
-        slow_print("A fallen **branch** could make a pole.")
-        if ask("Pick up the branch", ["yes", "no"]) == "yes":
-            p.add("branch pole", 5)
-
-    choice = ask("Do you try to cross", ["ford", "wait", "follow"])
-    if choice == "ford":
-        success = random.random() < (0.65 if p.has("branch pole") else 0.35)
-        if success:
-            slow_print("You balance across slick stones, the pole steadying you.")
-            p.score += 10
-            canyon(p)
+    if ask("Enter hut", ["yes","no"]) == "yes":
+        if "key" in p.inv:
+            slow("Chest opened.")
+            p.add("map", 10)
+            p.add("rations", 5)
         else:
-            slow_print("You slip! The current drags you downstream.")
-            p.damage(1)
-            beach(p)
-    elif choice == "wait":
-        slow_print("You wait. The moon rises; the current eases a little.")
-        p.score += 3
-        canyon(p)
-    else:
-        slow_print("You follow the riverbank and discover a sandy **beach**.")
-        beach(p)
+            slow("Locked chest.")
 
-def clearing(p: Player) -> None:
-    slow_print("A sunlit **clearing** opens ahead. Stones form a circle with etched symbols.")
-    slow_print("A riddle is carved on one: ‘I speak without a mouth and hear without ears. What am I?’")
-    answer = input("Your answer: ").strip().lower()
-    if "echo" in answer:
-        slow_print("The stones hum. A hidden compartment opens.")
-        p.add("silver whistle", 12)
-    else:
-        slow_print("The stones stay silent. Maybe another time.")
-        p.damage(1)
+    clearing(p)
 
-    next_step = ask("Paths lead north to **hills** or east to the **river**", ["hills", "river"])
-    if next_step == "hills":
+# ---------- River ----------
+
+def river(p):
+    slow("\nYou reach a river.")
+
+    if ask("Cross", ["yes","no"]) == "yes":
+        if random.random() < 0.6:
+            slow("You cross safely.")
+        else:
+            slow("You slip.")
+            p.dmg(1)
+
+    beach(p)
+
+# ---------- Clearing ----------
+
+def clearing(p):
+    slow("\nA stone circle.")
+
+    puzzle_echo(p)
+
+    c = ask("Go", ["hills","river"])
+    if c == "hills":
         canyon(p)
     else:
         river(p)
 
-def beach(p: Player) -> None:
-    slow_print("You crawl onto a **beach**. Driftwood litters the shore.")
-    if not p.has("glass shard"):
-        slow_print("Among the driftwood, a **glass shard** glitters.")
-        if ask("Take the glass shard", ["yes", "no"]) == "yes":
-            p.add("glass shard", 4)
+# ---------- Beach ----------
 
-    if ask("Light a signal fire with driftwood", ["yes", "no"]) == "yes":
-        slow_print("Smoke curls skyward. You hear a distant answering whistle.")
-        p.score += 8
+def beach(p):
+    slow("\nYou reach a beach.")
 
-    slow_print("Footprints lead inland toward rocky **canyons**.")
+    if ask("Search", ["yes","no"]) == "yes":
+        p.add("shard", 5)
+
     canyon(p)
 
-def canyon(p: Player) -> None:
-    slow_print("You enter a narrow **canyon**. A rope bridge spans a chasm.")
-    if not p.has("forest map"):
-        slow_print("Without a map, you feel uncertain where this leads…")
-    act = ask("Cross the bridge or search around", ["cross", "search"])
-    if act == "search":
-        slow_print("Behind a boulder, a pack! Inside: **rope** and a **flint**.")
+# ---------- Canyon ----------
+
+def canyon(p):
+    slow("\nA canyon with a rope bridge.")
+
+    if ask("Search area", ["yes","no"]) == "yes":
         p.add("rope", 6)
-        p.add("flint", 6)
 
-    if ask("Proceed to cross the bridge", ["yes", "no"]) == "yes":
-        if p.has("rope") and random.random() < 0.9:
-            slow_print("You reinforce the frayed planks with rope. Safe crossing!")
-            p.score += 10
-            gate(p)
+    if ask("Cross bridge", ["yes","no"]) == "yes":
+        if "rope" in p.inv or random.random() < 0.6:
+            slow("You cross safely.")
         else:
-            if random.random() < 0.6:
-                slow_print("The bridge sways but holds. You make it across.")
-                p.score += 6
-                gate(p)
-            else:
-                slow_print("A plank snaps! You slam into the side and scramble up.")
-                p.damage(1)
-                gate(p)
-    else:
-        slow_print("You backtrack and find a longer, safer route—time lost, but safe.")
-        p.score += 2
-        gate(p)
+            slow("You fall slightly.")
+            p.dmg(1)
 
-def gate(p: Player) -> None:
-    slow_print("Beyond the canyon stands an ancient **stone gate** with three sockets.")
-    needed = {"silver whistle", "forest map", "flint"}
-    have = needed.intersection(set(p.inventory))
-    slow_print(f"You hold: {', '.join(sorted(have)) or 'nothing useful'}")
+    gate(p)
 
-    # Simple ending logic based on items
-    if needed.issubset(set(p.inventory)):
-        slow_print("You study the map, spark the signal with flint, and blow the whistle.")
-        slow_print("Mechanisms grind; the gate opens to a sunlit road. You’re free!")
-        p.score += 25
-        ending(p, "True Escape")
-    elif {"forest map", "silver whistle"}.issubset(set(p.inventory)):
-        slow_print("You coordinate with distant watchers using the whistle and map routes.")
-        slow_print("A rescue party arrives by dusk and guides you out. You survive!")
-        p.score += 15
-        ending(p, "Rescued")
+# ---------- Gate ----------
+
+def gate(p):
+    slow("\nA massive stone gate.")
+
+    if "map" in p.inv:
+        slow("You understand the mechanism.")
+
+    slow("The gate opens...")
+    ruins(p)
+
+# ---------- PART 2 ----------
+
+def ruins(p):
+    slow("\nYou enter ancient ruins.")
+    slow("This wasn't escape. It was level one.")
+
+    c = ask("Go", ["tower","arena","vault"])
+
+    if c == "tower":
+        tower(p)
+    elif c == "arena":
+        arena(p)
     else:
-        slow_print("You can’t open the gate. As night falls, you set a camp and wait.")
-        if p.health >= 3:
-            slow_print("You endure the cold and find a patrol at dawn.")
-            p.score += 8
-            ending(p, "Survived the Night")
+        vault(p)
+
+# ---------- Tower ----------
+
+def tower(p):
+    slow("\nYou climb a broken tower.")
+
+    if random.random() < 0.7:
+        p.add("ancient map", 10)
+    else:
+        p.dmg(1)
+
+    ruins(p)
+
+# ---------- Arena ----------
+
+def arena(p):
+    slow("\nArena. A rival appears.")
+
+    c = ask("Action", ["fight","talk","run"])
+
+    if c == "fight":
+        fight(p)
+
+    elif c == "talk":
+        if random.random() < 0.5:
+            p.add("medkit", 10)
         else:
-            slow_print("Exhausted and injured, you drift into uneasy sleep…")
-            ending(p, "Lost to the Forest")
+            fight(p)
 
-def ending(p: Player, title: str) -> None:
-    slow_print("\n=== THE END ===")
-    slow_print(f"Outcome: {title}")
-    slow_print(f"Final Score: {p.score}")
-    slow_print(f"Health: {p.health}")
-    slow_print(f"Inventory: {', '.join(p.inventory) or 'Empty'}\n")
-    if ask("Play again", ["yes", "no"]) == "yes":
+    ruins(p)
+
+# ---------- Vault ----------
+
+def vault(p):
+    slow("\nA sealed vault.")
+
+    puzzle_math(p)
+
+    if "core" in p.inv:
+        p.add("artifact", 25)
+
+    final(p)
+
+# ---------- Final ----------
+
+def final(p):
+    slow("\nA glowing portal stands before you.")
+
+    if "artifact" in p.inv and "core" in p.inv:
+        ending(p, "TRUE ENDING: You broke the system")
+    elif p.hp >= 3:
+        ending(p, "NEUTRAL: You survived")
+    else:
+        ending(p, "BAD: Lost forever")
+
+# ---------- Ending ----------
+
+def ending(p, title):
+    slow("\n=== END ===")
+    slow(title)
+    slow(f"Score: {p.score}")
+    slow(f"HP: {p.hp}")
+    slow(f"Inventory: {p.inv}")
+
+    if ask("Play again", ["yes","no"]) == "yes":
         game()
     else:
-        slow_print("Thanks for playing! 🌲")
-        sys.exit(0)
+        sys.exit()
 
-# ---------- Entry Point ----------
+# ---------- Start ----------
 
-def game() -> None:
-    random.seed()  # fresh randomness each run
-    player = Player()
-    intro(player)
+def game():
+    slow("\n=== ESCAPE THE FOREST ===\n")
+    p = Player()
+    intro(p)
 
 if __name__ == "__main__":
-    try:
-        game()
-    except KeyboardInterrupt:
-        print("\nGoodbye!")
+    game()
